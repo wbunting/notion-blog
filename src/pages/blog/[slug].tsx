@@ -1,4 +1,5 @@
 import Head from 'next/head'
+import Link from 'next/link'
 import fetch from 'node-fetch'
 import Header from '../../components/header'
 import Heading from '../../components/heading'
@@ -13,7 +14,7 @@ import getNotionUsers from '../../lib/notion/getNotionUsers'
 import { getBlogLink, getDateStr } from '../../lib/blog-helpers'
 
 // Get the data for each blog post
-export async function unstable_getStaticProps({ params: { slug } }) {
+export async function getStaticProps({ params: { slug }, preview }) {
   // load the postsTable so that we can get the page's ID
   const postsTable = await getBlogIndex()
   const post = postsTable[slug]
@@ -58,20 +59,24 @@ export async function unstable_getStaticProps({ params: { slug } }) {
   return {
     props: {
       post,
+      preview: preview || false,
     },
     revalidate: 10,
   }
 }
 
 // Return our list of blog posts to prerender
-export async function unstable_getStaticPaths() {
+export async function getStaticPaths() {
   const postsTable = await getBlogIndex()
-  return Object.keys(postsTable).map(slug => getBlogLink(slug))
+  return {
+    paths: Object.keys(postsTable).map(slug => getBlogLink(slug)),
+    fallback: false,
+  }
 }
 
 const listTypes = new Set(['bulleted_list', 'numbered_list'])
 
-const RenderPost = ({ post, redirect }) => {
+const RenderPost = ({ post, redirect, preview }) => {
   let listTagName: string | null = null
   let listLastId: string | null = null
   let listMap: {
@@ -113,6 +118,17 @@ const RenderPost = ({ post, redirect }) => {
   return (
     <>
       <Header titlePre={post.Page} />
+      {preview && (
+        <div className={blogStyles.previewAlertContainer}>
+          <div className={blogStyles.previewAlert}>
+            <b>Note:</b>
+            {` `}Viewing in preview mode{' '}
+            <Link href={`/api/clear-preview-post?slug=${post.Slug}`}>
+              <button className={blogStyles.escapePreview}>Exit Preview</button>
+            </Link>
+          </div>
+        </div>
+      )}
       <div className={blogStyles.post}>
         <h1>{post.Page || ''}</h1>
         {post.Authors.length > 0 && (
